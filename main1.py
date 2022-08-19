@@ -1,6 +1,7 @@
 import pygame
 from sys import exit
 import random
+import operator
 
 pygame.init()
 clock = pygame.time.Clock()
@@ -37,6 +38,7 @@ class Bird(pygame.sprite.Sprite):
         self.rect.center = bird_start_position
         self.image_index = 0
         self.vel = 0
+        self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         self.flap = False
         self.points = 0
         self.alive = True
@@ -85,7 +87,7 @@ class Pipe(pygame.sprite.Sprite):
     def update(self):
         # Move Pipe
         self.rect.x -= scroll_speed
-        if self.rect.x <= -win_width:
+        if self.rect.x <= bird_start_position[0] - 100:
             self.kill()
 
 class Ground(pygame.sprite.Sprite):
@@ -124,7 +126,7 @@ def scores(p, score):
 # Game Main Method
 def main():
     global score, game_stopped
-    score = 0
+    scor = 0
     # Instantiate Bird
     bird = pygame.sprite.GroupSingle()
     bird.add(Bird())
@@ -166,13 +168,21 @@ def main():
             ground.update()
         bird.update(user_input)
         pipeObj = pipes.sprites()
+        pipe_index = 0
+        if len(pipeObj) > 4:
+            if bird_start_position[0] > operator.itemgetter(0)(pipeObj[0].rect.bottomright):
+                pipe_index = 2
+            if bird_start_position[0] > operator.itemgetter(0)(pipeObj[2].rect.bottomright):
+                pipe_index = 4
+            if bird_start_position[0] > operator.itemgetter(0)(pipeObj[4].rect.bottomright):
+                pipe_index = 6 
         #Scoring 
         for pp in pipeObj:
             if pp.pipe_type == 'bottom':
-                if bird_start_position[0] > pp.rect.topleft[0] and not pp.passed:
+                if bird_start_position[0] > pp.rect.topright[0] and not pp.passed:
                     pp.passed = True
                     bird.sprite.scoring()
-                    score += 1
+                    scor  += 1
         collision_pipes = pygame.sprite.spritecollide(bird.sprites()[0], pipes, False)
         collision_ground = pygame.sprite.spritecollide(bird.sprites()[0], ground, False)
         if collision_pipes or collision_ground:
@@ -183,18 +193,21 @@ def main():
                 game_stopped = True
                 break
 
+        if len(pipeObj) > 0:
+            pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index ].rect.bottomright, 2)
+            pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright, 2)
         # Spawn Pipes
         if pipe_timer <= 0 and bird.sprite.alive:
             x_top, x_bottom = 550, 550
             y_top = random.randint(-600, -480)
-            y_bottom = y_top + random.randint(90, 130) + bottom_pipe_image.get_height()
+            y_bottom = y_top + random.randint(140, 190) + bottom_pipe_image.get_height()
             pipes.add(Pipe(x_top, y_top, top_pipe_image, 'top'))
             pipes.add(Pipe(x_bottom, y_bottom, bottom_pipe_image, 'bottom'))
-            pipe_timer = random.randint(180, 250)
+            pipe_timer = random.randint(250, 320)
         pipe_timer -= 1
         index += 1
         clock.tick(60)
-        print(bird.sprite.points)
+        # print(bird.sprite.points)
         pygame.display.update()
 
 

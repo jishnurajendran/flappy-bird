@@ -6,6 +6,8 @@ import sys
 import neat
 from sys import exit
 import random
+import operator
+import pickle
 
 pygame.init()
 clock = pygame.time.Clock()
@@ -20,6 +22,7 @@ bird_images = [pygame.image.load("assets/bird_down.png"),
                pygame.image.load("assets/bird_mid.png"),
                pygame.image.load("assets/bird_up.png")]
 skyline_image = pygame.image.load("assets/background.png")
+skyes = pygame.image.load ("assets/skyline.png")
 ground_image = pygame.image.load("assets/ground.png")
 top_pipe_image = pygame.image.load("assets/pipe_top.png")
 bottom_pipe_image = pygame.image.load("assets/pipe_bottom.png")
@@ -88,13 +91,27 @@ class Pipe(pygame.sprite.Sprite):
     def update(self):
         # Move Pipe
         self.rect.x -= scroll_speed
-        if self.rect.x <= -win_width:
+        if self.rect.x <= bird_start_position[0] - 200:
             self.kill()
           
 class Ground(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
         self.image = ground_image
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = x, y
+
+    def update(self):
+        # Move Ground
+        self.rect.x -= scroll_speed
+        if self.rect.x <= -win_width:
+            self.kill()
+
+
+class SkyLine(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = skyes
         self.rect = self.image.get_rect()
         self.rect.x, self.rect.y = x, y
 
@@ -135,7 +152,6 @@ def scores(p):
                 pp.passed = True
                 score += 1
                 
-genNo = 0
 # Game Main Method
 def eval_genomes(genomes, config):
     global score, game_stopped, Birdes, ge, nets
@@ -161,6 +177,9 @@ def eval_genomes(genomes, config):
     x_pos_ground, y_pos_ground = 0, 520
     ground = pygame.sprite.Group()
     ground.add(Ground(x_pos_ground, y_pos_ground))
+    x_pos_sky, y_pos_sky = 0, 0
+    skies = pygame.sprite.Group()
+    skies.add(SkyLine(x_pos_sky, y_pos_sky))
     run = True
     while run and len(Birdes)> 0:
         # Quit
@@ -172,28 +191,41 @@ def eval_genomes(genomes, config):
         # Spawn Ground
         if len(ground) <= 2:
             ground.add(Ground(win_width, y_pos_ground))
+        if len(ground) <= 2:
+            skies.add(SkyLine(win_width, y_pos_sky))
+
         # Draw - Pipes, Ground and Bird
         pipes.draw(window)
         ground.draw(window)
+        skies.draw(window)
         for bird in Birdes:
             bird.draw(window)
 
         pipeObj = pipes.sprites()
-
         for i, bird in enumerate(Birdes):
-            ge[i].fitness += 0.01
+            ge[i].fitness += 0.005
+            pipe_index = 0
+            if len(pipeObj) > 4:
+                if bird_start_position[0] > operator.itemgetter(0)(pipeObj[0].rect.bottomright):
+                    pipe_index = 2
+                if bird_start_position[0] > operator.itemgetter(0)(pipeObj[2].rect.bottomright):
+                    pipe_index = 4
+                if bird_start_position[0] > operator.itemgetter(0)(pipeObj[4].rect.bottomright):
+                    pipe_index = 6 
             for pp in pipeObj:
                 if pp.pipe_type == 'bottom':
-                    if bird_start_position[0] > pp.rect.topleft[0] and not pp.passed:
+                    if bird_start_position[0] > pp.rect.midbottom[0] and not pp.passed:
                         pp.passed = True
                         bird.sprite.scoring()
                         scor += 1
+                        ge[i].fitness +=  10 * scor
             if len(pipeObj) > 0:
-                pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[scor * 2].rect.bottomright, 2)
-                pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[(scor * 2) + 1].rect.topright, 2)
-                if pipeObj[scor * 2].rect.x > bird.sprites()[0].rect.center[0]:
-                    a = distance(bird.sprites()[0].rect.center, pipeObj[scor * 2].rect.bottomright)
-                    b = distance(bird.sprites()[0].rect.center, pipeObj[(scor * 2) + 1].rect.topright)
+                pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index].rect.bottomright, 2)
+                pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright, 2)
+                if pipeObj[pipe_index].rect.bottomright[0] > bird.sprites()[0].rect.center[0]:
+                    a = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index].rect.bottomright)
+                    b = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright)
+                    # c = abs(pipeObj[pipe_index].rect.bottomright[1] - pipeObj[pipe_index + 1].rect.topright[1])
                     inp = [bird.sprites()[0].rect.center[1], a, b]
             else:
                 inp = [bird.sprites()[0].rect.center[1], distance(bird.sprites()[0].rect.center,[550, 265]), distance(bird.sprites()[0].rect.center,[550,380])]
@@ -205,28 +237,30 @@ def eval_genomes(genomes, config):
             bird.update(user_input)
             collision_pipes = pygame.sprite.spritecollide(bird.sprites()[0], pipes, False)
             collision_ground = pygame.sprite.spritecollide(bird.sprites()[0], ground, False)
-            if collision_pipes or collision_ground:
+            collision_sky = pygame.sprite.spritecollide(bird.sprites()[0], skies, False)
+            if collision_pipes or collision_ground or collision_sky:
                 bird.sprite.alive = False
-                ge[i].fitness -= 5
+                ge[i].fitness -= 5 + scor * 10
                 remove(i)
 
         # Update - Pipes, Ground and Bird
         pipes.update()
         ground.update()
+        skies.update()
         # Spawn Pipes
         if pipe_timer <= 0 and bird.sprite.alive:
             x_top, x_bottom = 550, 550
             y_top = random.randint(-600, -480)
-            y_bottom = y_top + random.randint(80, 150) + bottom_pipe_image.get_height()
+            y_bottom = y_top + random.randint(110, 150) + bottom_pipe_image.get_height()
             pipes.add(Pipe(x_top, y_top, top_pipe_image, 'top'))
             pipes.add(Pipe(x_bottom, y_bottom, bottom_pipe_image, 'bottom'))
             pipe_timer = random.randint(180, 250)
         pipe_timer -= 1
 
         # Show Score
-        score_text = font.render('Time: ' + str(round(scor)), True, pygame.Color(255, 255, 255))
+        score_text = font.render('Score: ' + str(round(scor)), True, pygame.Color(0, 0, 255))
         alive_text = font.render(f'Birdies Alive:  {str(len(Birdes))}', True, (255, 255, 255))
-        genereation_text = font.render(f'Generation:  {pop.generation+1}', True, (255, 255, 255))
+        genereation_text = font.render(f'Generation:  {pop.generation+1}', True, (0, 0, 0))
         window.blit(score_text, (20, 20))
         window.blit(genereation_text, (20, 35))
         window.blit(alive_text, (20, 50))
@@ -261,7 +295,13 @@ def run(config_path):
 
     pop = neat.Population(config)
     pipe_timer = 0
-    winner = pop.run(eval_genomes, 2000)
+    pop.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter()
+    pop.add_reporter(stats)
+    winner = pop.run(eval_genomes, 50)
+    file = open('flapper.dat', 'wb')
+    pickle.dump(winner, file)
+    file.close()
     return winner
 
 
