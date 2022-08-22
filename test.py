@@ -31,7 +31,7 @@ start_image = pygame.image.load("assets/start.png")
 
 # Game
 scroll_speed = 1
-bird_start_position = (100, 250)
+bird_start_position = (80, 250)
 score = 0
 font = pygame.font.SysFont('Segoe', 26)
 game_stopped = True
@@ -203,7 +203,8 @@ def eval_genomes(genomes, config):
 
         pipeObj = pipes.sprites()
         for i, bird in enumerate(Birdes):
-            ge[i].fitness += 0.005
+            if scor > 0:
+                ge[i].fitness += 0.05
             pipe_index = 0
             if len(pipeObj) > 4:
                 if bird_start_position[0] > operator.itemgetter(0)(pipeObj[0].rect.bottomright):
@@ -218,7 +219,7 @@ def eval_genomes(genomes, config):
                         pp.passed = True
                         bird.sprite.scoring()
                         scor += 1
-                        ge[i].fitness +=  10 * scor
+                        ge[i].fitness +=  2
             if len(pipeObj) > 0:
                 pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index].rect.bottomright, 2)
                 pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright, 2)
@@ -240,7 +241,7 @@ def eval_genomes(genomes, config):
             collision_sky = pygame.sprite.spritecollide(bird.sprites()[0], skies, False)
             if collision_pipes or collision_ground or collision_sky:
                 bird.sprite.alive = False
-                ge[i].fitness -= 5 + scor * 10
+                ge[i].fitness -= -1
                 remove(i)
 
         # Update - Pipes, Ground and Bird
@@ -298,7 +299,7 @@ def run(config_path):
     pop.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     pop.add_reporter(stats)
-    winner = pop.run(eval_genomes, 50)
+    winner = pop.run(eval_genomes, 5000)
     file = open('flapper.dat', 'wb')
     pickle.dump(winner, file)
     file.close()
