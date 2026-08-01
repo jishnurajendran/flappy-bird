@@ -12,6 +12,12 @@ import pickle
 pygame.init()
 clock = pygame.time.Clock()
 
+# End a training generation once this many pipes are cleared, so an "immortal"
+# bird can't loop forever and block the run from finishing/saving. Survivors get
+# SOLVE_BONUS so best fitness crosses the config fitness_threshold.
+MAX_SCORE = int(os.environ.get('MAX_SCORE', '50'))
+SOLVE_BONUS = float(os.environ.get('SOLVE_BONUS', '1000'))
+
 # Window
 win_height = 720
 win_width = 551
@@ -181,7 +187,7 @@ def eval_genomes(genomes, config):
     skies = pygame.sprite.Group()
     skies.add(SkyLine(x_pos_sky, y_pos_sky))
     run = True
-    while run and len(Birdes)> 0:
+    while run and len(Birdes) > 0 and scor < MAX_SCORE:
         # Quit
         quit_game()
         # Reset Frame
@@ -273,6 +279,12 @@ def eval_genomes(genomes, config):
         clock.tick(90)
         # print(pygame.time.get_ticks()/1000)
         pygame.display.update()
+
+    # Generation hit the score cap: reward survivors so pop.run detects a
+    # solution (best fitness >= fitness_threshold) and saves the winner.
+    if scor >= MAX_SCORE:
+        for genome in ge:
+            genome.fitness += SOLVE_BONUS
 
 def loadingGame():
     global pop, game_stopped, pipe_timer
