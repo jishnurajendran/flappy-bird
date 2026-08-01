@@ -33,7 +33,7 @@ start_image = pygame.image.load("assets/start.png")
 scroll_speed = 1
 bird_start_position = (80, 250)
 score = 0
-font = pygame.font.SysFont('Segoe', 26)
+font = pygame.font.SysFont(None, 26)
 game_stopped = True
 
 
