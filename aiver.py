@@ -205,13 +205,16 @@ def eval_genomes(genomes, config):
         for i, bird in enumerate(Birdes):
             ge[i].fitness += 0.5
             pipe_index = 0
+            bird_left = bird.sprites()[0].rect.left
             if len(pipeObj) > 4:
-                if bird_start_position[0] > operator.itemgetter(0)(pipeObj[0].rect.bottomright):
+                # Advance target only when the bird has FULLY passed a pipe
+                # (trailing edge clear of its right edge), not just its center.
+                if bird_left > operator.itemgetter(0)(pipeObj[0].rect.bottomright):
                     pipe_index = 2
-                if bird_start_position[0] > operator.itemgetter(0)(pipeObj[2].rect.bottomright):
+                if bird_left > operator.itemgetter(0)(pipeObj[2].rect.bottomright):
                     pipe_index = 4
-                if bird_start_position[0] > operator.itemgetter(0)(pipeObj[4].rect.bottomright):
-                    pipe_index = 6 
+                if bird_left > operator.itemgetter(0)(pipeObj[4].rect.bottomright):
+                    pipe_index = 6
             for pp in pipeObj:
                 if pp.pipe_type == 'bottom':
                     if bird_start_position[0] > pp.rect.midbottom[0] and not pp.passed:
@@ -222,10 +225,12 @@ def eval_genomes(genomes, config):
             if len(pipeObj) > 0:
                 pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index].rect.bottomright, 2)
                 pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright, 2)
-                if pipeObj[pipe_index].rect.bottomright[0] > bird.sprites()[0].rect.center[0]:
-                    a = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index].rect.bottomright)
-                    b = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright)
-                    inp = [bird.sprites()[0].rect.center[1], a, b]
+                # Always refresh inputs for the current target pipe — no
+                # center-vs-left guard, else inp goes stale (and in this loop
+                # reuses the previous bird's values) while finishing a pass.
+                a = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index].rect.bottomright)
+                b = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright)
+                inp = [bird.sprites()[0].rect.center[1], a, b]
             else:
                 inp = [bird.sprites()[0].rect.center[1], distance(bird.sprites()[0].rect.center,[550, 265]), distance(bird.sprites()[0].rect.center,[550,380])]
             output = nets[i].activate(inp)
@@ -322,13 +327,16 @@ def playNet(winner_net):
 
         pipeObj = pipes.sprites()
         pipe_index = 0
+        bird_left = bird.sprites()[0].rect.left
         if len(pipeObj) > 4:
-            if bird_start_position[0] > operator.itemgetter(0)(pipeObj[0].rect.bottomright):
+            # Advance target only when the bird has FULLY passed a pipe
+            # (trailing edge clear of its right edge), not just its center.
+            if bird_left > operator.itemgetter(0)(pipeObj[0].rect.bottomright):
                 pipe_index = 2
-            if bird_start_position[0] > operator.itemgetter(0)(pipeObj[2].rect.bottomright):
+            if bird_left > operator.itemgetter(0)(pipeObj[2].rect.bottomright):
                 pipe_index = 4
-            if bird_start_position[0] > operator.itemgetter(0)(pipeObj[4].rect.bottomright):
-                pipe_index = 6 
+            if bird_left > operator.itemgetter(0)(pipeObj[4].rect.bottomright):
+                pipe_index = 6
         for pp in pipeObj:
             if pp.pipe_type == 'bottom':
                 if bird_start_position[0] > pp.rect.midbottom[0] and not pp.passed:
@@ -338,10 +346,11 @@ def playNet(winner_net):
         if len(pipeObj) > 0:
             pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index].rect.bottomright, 2)
             pygame.draw.line(window, bird.sprite.color, bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright, 2)
-            if pipeObj[pipe_index].rect.bottomright[0] > bird.sprites()[0].rect.center[0]:
-                a = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index].rect.bottomright)
-                b = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright)
-                inp = [bird.sprites()[0].rect.center[1], a, b]
+            # Always refresh inputs for the current target pipe — no
+            # center-vs-left guard, else inp goes stale while finishing a pass.
+            a = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index].rect.bottomright)
+            b = distance(bird.sprites()[0].rect.center, pipeObj[pipe_index + 1].rect.topright)
+            inp = [bird.sprites()[0].rect.center[1], a, b]
         else:
             inp = [bird.sprites()[0].rect.center[1], distance(bird.sprites()[0].rect.center,[550, 265]), distance(bird.sprites()[0].rect.center,[550,380])]
         output = winner_net.activate(inp)
